@@ -32,11 +32,11 @@ on:
 
 env:
   AWS_REGION: eu-north-1                     # literal region string
-  ECR_REPOSITORY: student-performance       # your ECR repo name (must be lowercase)
+  ECR_REPOSITORY: studentperformance      # your ECR repo name (must be lowercase)
   ECS_SERVICE: student-performance-service  # your ECS service name
   ECS_CLUSTER: student-performance-cluster  # your ECS cluster name
   ECS_TASK_DEFINITION: .aws/task-def.json   # path to ECS task definition JSON
-  CONTAINER_NAME: student-performance       # container name
+  CONTAINER_NAME: studentperformance       # container name
 
 permissions:
   contents: read
