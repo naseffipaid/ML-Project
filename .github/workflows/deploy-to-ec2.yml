@@ -1,20 +1,20 @@
-name: Deploy to EC2
+name: Deploy to EC2 via ECR
 
 on:
   push:
     branches: [ "main" ]
 
+env:
+  AWS_REGION: eu-north-1
+  ECR_REGISTRY: 585008067217.dkr.ecr.eu-north-1.amazonaws.com
+  IMAGE_NAME: studentperformance1
+  CONTAINER_NAME: studentperformance1
+  CONTAINER_PORT: 8080
+
 jobs:
   deploy:
-    name: Build & Run on EC2
-    runs-on: self-hosted   # Your EC2 runner must be registered
-
-    env:
-      IMAGE_NAME: studentperformance1
-      CONTAINER_NAME: studentperformance1
-      CONTAINER_PORT: 8080
-      AWS_REGION: eu-north-1
-      ECR_REGISTRY: 585008067217.dkr.ecr.eu-north-1.amazonaws.com
+    name: Build, Push & Run on EC2
+    runs-on: self-hosted   # This runs directly on your EC2 runner
 
     steps:
     - name: Checkout code
@@ -46,7 +46,7 @@ jobs:
         if [ $(docker ps -q -f name=$CONTAINER_NAME) ]; then
           docker stop $CONTAINER_NAME
           docker rm $CONTAINER_NAME
-        fi || true
+        fi
 
     - name: Run Docker container
       run: |
