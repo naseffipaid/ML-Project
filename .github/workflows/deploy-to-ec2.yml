@@ -6,6 +6,7 @@ on:
 
 env:
   AWS_REGION: eu-north-1
+  ECR_ACCOUNT_ID: 585008067217                # <-- numeric account id (12 digits)
   ECR_REGISTRY: 585008067217.dkr.ecr.eu-north-1.amazonaws.com
   IMAGE_NAME: studentperformance1
   CONTAINER_NAME: studentperformance1
@@ -14,29 +15,26 @@ env:
 jobs:
   deploy:
     name: Build, Push & Run on EC2
-    runs-on: self-hosted   # must be your EC2 self-hosted runner
+    runs-on: self-hosted   # your EC2 self-hosted runner
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Ensure Docker is installed (will try to install if missing)
+    - name: Ensure Docker is installed (attempt)
       shell: bash
       run: |
         if ! command -v docker >/dev/null 2>&1; then
           echo "Docker not found — attempting to install docker..."
-          # Debian/Ubuntu installer (may require sudo)
           sudo apt-get update -y
           sudo apt-get install -y docker.io
           sudo systemctl enable docker
           sudo systemctl start docker
-          # add runner user (usually 'ubuntu' or whichever) to docker group (may require log out/in to take effect)
           sudo usermod -aG docker $USER || true
         else
           echo "Docker already installed: $(docker --version)"
         fi
-        # verify
-        docker info >/dev/null || (echo "docker not usable (needs permissions). Ensure runner user is in docker group or run as root." && exit 1)
+        docker info >/dev/null || (echo "docker not usable (permissions). Ensure runner user is in docker group or run as root." && exit 1)
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -48,12 +46,21 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Ensure ECR repository exists
+      shell: bash
+      run: |
+        if ! aws ecr describe-repositories --repository-names "${IMAGE_NAME}" >/dev/null 2>&1; then
+          echo "ECR repo ${IMAGE_NAME} not found — creating..."
+          aws ecr create-repository --repository-name "${IMAGE_NAME}" >/dev/null
+        else
+          echo "ECR repo ${IMAGE_NAME} exists"
+        fi
+
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
       with:
-        registries: ${{ env.ECR_REGISTRY }}
+        registries: ${{ env.ECR_ACCOUNT_ID }}
         mask-password: true
-      # configure-aws-credentials already exported AWS_ACCESS_KEY_ID/SECRET/AWS_REGION to the environment
 
     - name: Build Docker image
       run: |
@@ -85,3 +92,4 @@ jobs:
     - name: Show container status
       run: |
         docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
