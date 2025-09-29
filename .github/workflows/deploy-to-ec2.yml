@@ -2,44 +2,47 @@ name: Deploy to EC2
 
 on:
   push:
-    branches:
-      - main
-
-env:
-  IMAGE_NAME: studentperformance1
-  CONTAINER_PORT: 8080
-  HOST_PORT: 8080
+    branches: [ "main" ]
 
 jobs:
   deploy:
-    name: Build and Deploy Docker on EC2
-    runs-on: self-hosted       # This will use your EC2 runner
+    name: Build & Run on EC2
+    runs-on: self-hosted   # Runs directly on your EC2
+
+    env:
+      IMAGE_NAME: studentperformance1
+      CONTAINER_NAME: studentperformance1
+      CONTAINER_PORT: 8080
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Login to ECR (optional, if you want to push image)
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          region: eu-north-1
+    - name: Log in to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build Docker image
-        run: |
-          docker build -t $IMAGE_NAME .
+    - name: Build Docker image
+      run: |
+        docker build -t $IMAGE_NAME .
+        docker tag $IMAGE_NAME:latest 585008067217.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_NAME:latest
 
-      - name: Stop existing container (if any)
-        run: |
-          if [ $(docker ps -q -f name=$IMAGE_NAME) ]; then
-            docker stop $IMAGE_NAME
-            docker rm $IMAGE_NAME
-          fi || true
+    - name: Push Docker image to ECR
+      run: |
+        docker push 585008067217.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_NAME:latest
 
-      - name: Run container
-        run: |
-          docker run -d \
-            --name $IMAGE_NAME \
-            -p $HOST_PORT:$CONTAINER_PORT \
-            $IMAGE_NAME
+    - name: Stop old container if exists
+      run: |
+        if [ $(docker ps -q -f name=$CONTAINER_NAME) ]; then
+          docker stop $CONTAINER_NAME
+          docker rm $CONTAINER_NAME
+        fi
+
+    - name: Run Docker container
+      run: |
+        docker run -d \
+          --name $CONTAINER_NAME \
+          -p $CONTAINER_PORT:$CONTAINER_PORT \
+          585008067217.dkr.ecr.eu-north-1.amazonaws.com/$IMAGE_NAME:latest
